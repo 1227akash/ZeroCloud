@@ -1,0 +1,33 @@
+# Auto-detect text files and normalize line endings to LF across platforms
+* text=auto eol=lf
+
+# Explicit text files
+*.ts text
+*.tsx text
+*.js text
+*.jsx text
+*.mjs text
+*.cjs text
+*.json text
+*.css text
+*.md text
+*.svg text
+*.yml text
+*.yaml text
+*.html text
+*.env.example text
+Dockerfile text
+
+# Binary assets (avoid corruption during Git transforms)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.tar.gz binary
+*.zip binary

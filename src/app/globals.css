@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    @apply bg-zinc-50 text-zinc-900 dark:bg-dark-bg dark:text-zinc-100 font-sans antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white transition-colors duration-200;
+  }
+
+  /* Accessible focus states */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-dark-bg;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/80 dark:bg-dark-card/85 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+  }
+
+  .glass-card {
+    @apply bg-white dark:bg-dark-card border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)];
+  }
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
