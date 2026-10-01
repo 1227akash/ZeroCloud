@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Bug & Error Inspector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo-dot"></span>
+        <h1 class="title">Bug & Error Inspector</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-export" class="icon-btn" title="Copy Markdown Report">📋 Export</button>
+      </div>
+    </header>
+
+    <!-- Quick Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-pill error-stat">
+        <span class="stat-label">Errors</span>
+        <span id="stat-errors" class="stat-value">0</span>
+      </div>
+      <div class="stat-pill warning-stat">
+        <span class="stat-label">Warnings</span>
+        <span id="stat-warnings" class="stat-value">0</span>
+      </div>
+      <div class="stat-pill perf-stat">
+        <span class="stat-label">CLS</span>
+        <span id="stat-cls" class="stat-value">0.00</span>
+      </div>
+      <div class="stat-pill perf-stat">
+        <span class="stat-label">LCP</span>
+        <span id="stat-lcp" class="stat-value">--</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="tab-errors">Runtime Errors</button>
+      <button class="tab-btn" data-tab="tab-links">Broken Links</button>
+      <button class="tab-btn" data-tab="tab-a11y">A11y & DOM</button>
+      <button class="tab-btn" data-tab="tab-tools">Tools</button>
+    </nav>
+
+    <!-- Tab Contents -->
+    <main class="tab-content">
+      <!-- 1. Errors Tab -->
+      <section id="tab-errors" class="tab-pane active">
+        <div class="pane-header">
+          <span class="section-title">Intercepted Issues</span>
+          <button id="btn-clear-logs" class="secondary-btn">Clear Logs</button>
+        </div>
+        <div id="error-list" class="list-container">
+          <div class="empty-state">No errors caught yet on this page. 🎉</div>
+        </div>
+      </section>
+
+      <!-- 2. Broken Links Tab -->
+      <section id="tab-links" class="tab-pane">
+        <div class="pane-header">
+          <span class="section-title">Links & Media Audit</span>
+          <button id="btn-scan-links" class="primary-btn">Scan Links & Images</button>
+        </div>
+        <div id="links-summary" class="summary-text hidden"></div>
+        <div id="links-list" class="list-container">
+          <div class="empty-state">Click "Scan Links & Images" to check for 404s and broken media.</div>
+        </div>
+      </section>
+
+      <!-- 3. Accessibility Tab -->
+      <section id="tab-a11y" class="tab-pane">
+        <div class="pane-header">
+          <span class="section-title">Accessibility & DOM Quality</span>
+          <button id="btn-scan-a11y" class="primary-btn">Audit Page</button>
+        </div>
+        <div id="a11y-list" class="list-container">
+          <div class="empty-state">Click "Audit Page" to find missing alt tags, unlabeled inputs & heading skips.</div>
+        </div>
+      </section>
+
+      <!-- 4. Tools Tab -->
+      <section id="tab-tools" class="tab-pane">
+        <div class="tools-group">
+          <div class="tool-card">
+            <div class="tool-info">
+              <span class="tool-title">Pesticide Wireframe Mode</span>
+              <p class="tool-desc">Applies high-visibility color outlines to all HTML elements to detect layout shifts and overflow.</p>
+            </div>
+            <button id="btn-toggle-pesticide" class="toggle-btn">Enable</button>
+          </div>
+
+          <div class="tool-card">
+            <div class="tool-info">
+              <span class="tool-title">Performance Snapshot</span>
+              <p id="perf-breakdown" class="tool-desc">TTFB: -- | DOM Ready: -- | Page Load: --</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span id="page-url" class="page-url-text">inspecting page...</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

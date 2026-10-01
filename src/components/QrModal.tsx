@@ -68,6 +68,7 @@ export default function QrModal({ shareUrl, shortCode }: QrModalProps) {
       <div className="flex flex-col items-center justify-center">
         <div className="p-4 rounded-2xl bg-white shadow-md border border-zinc-200 flex items-center justify-center">
           {qrDataUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={qrDataUrl}
               alt="Scan this QR code on the receiver device to start the encrypted transfer"

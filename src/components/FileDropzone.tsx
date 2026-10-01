@@ -40,6 +40,11 @@ export default function FileDropzone({
       return;
     }
 
+    if (file.size === 0) {
+      setErrorMessage('The selected file is empty (0 bytes). Please select a file with data to transfer.');
+      return;
+    }
+
     if (file.size > MAX_FILE_SIZE) {
       setErrorMessage(
         `File is too large (${formatBytes(file.size)}). ZeroCloud supports single files up to 10 GB.`

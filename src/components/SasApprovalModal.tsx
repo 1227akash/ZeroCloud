@@ -67,7 +67,7 @@ export default function SasApprovalModal({
         ) : (
           <div className="py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 flex items-center justify-center gap-2">
             <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
-            <span>Waiting for sender to click "Approve this receiver"...</span>
+            <span>Waiting for sender to click &quot;Approve this receiver&quot;...</span>
           </div>
         )}
       </div>

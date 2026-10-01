@@ -72,10 +72,22 @@ class SignalingService {
             return;
           }
 
-          const msg = JSON.parse(data.toString('utf8'));
+          let msg;
+          try {
+            msg = JSON.parse(data.toString('utf8'));
+          } catch (err) {
+            this.sendError(ws, 'BAD_REQUEST', 'Invalid JSON message');
+            return;
+          }
+
+          if (!msg || typeof msg !== 'object' || Array.isArray(msg)) {
+            this.sendError(ws, 'BAD_REQUEST', 'Message payload must be a JSON object');
+            return;
+          }
+
           this.handleMessage(ws, msg);
         } catch (err) {
-          this.sendError(ws, 'BAD_REQUEST', 'Invalid JSON message');
+          this.sendError(ws, 'INTERNAL_ERROR', 'Unexpected message processing error');
         }
       });
 
@@ -103,6 +115,14 @@ class SignalingService {
 
   handleMessage(ws, msg) {
     const { type, sessionId, shortCode, payload, sasCode } = msg;
+
+    if (!type || typeof type !== 'string') {
+      return this.sendError(ws, 'BAD_REQUEST', 'Valid message type required');
+    }
+
+    if (sessionId && (typeof sessionId !== 'string' || sessionId.length > 128 || !/^[a-zA-Z0-9_\-]+$/.test(sessionId))) {
+      return this.sendError(ws, 'INVALID_SESSION_ID', 'Invalid session ID format.');
+    }
 
     switch (type) {
       case 'create_session': {
@@ -263,10 +283,20 @@ class SignalingService {
           return this.sendError(ws, 'INVALID_SESSION', 'Session invalid or revoked.');
         }
 
+        // Strict authorization: ws must be sender or receiver of this specific session
+        if (ws !== session.senderWs && ws !== session.receiverWs) {
+          return this.sendError(ws, 'UNAUTHORIZED', 'Not an authorized participant in this session.');
+        }
+
+        // Enforce that the receiver was approved before forwarding signals
+        if (!session.isApproved) {
+          return this.sendError(ws, 'SESSION_NOT_APPROVED', 'Transfer session has not been approved yet.');
+        }
+
         session.lastActivity = Date.now();
 
-        if (ws.isSender) {
-          // Forward to receiver
+        if (ws === session.senderWs) {
+          // Forward from sender to approved receiver
           if (session.receiverWs && session.receiverWs.readyState === WebSocket.OPEN) {
             this.send(session.receiverWs, {
               type: 'signal',
@@ -274,8 +304,8 @@ class SignalingService {
               payload,
             });
           }
-        } else {
-          // Receiver forwarding to sender
+        } else if (ws === session.receiverWs) {
+          // Forward from approved receiver to sender
           if (session.senderWs && session.senderWs.readyState === WebSocket.OPEN) {
             this.send(session.senderWs, {
               type: 'signal',
@@ -293,30 +323,28 @@ class SignalingService {
   }
 
   handleDisconnect(ws) {
-    if (!ws.sessionId) return;
-    const session = this.sessions.get(ws.sessionId);
-    if (!session) return;
-
-    if (ws.isSender) {
-      // Sender tab closed or disconnected
-      if (session.receiverWs && session.receiverWs.readyState === WebSocket.OPEN) {
-        this.send(session.receiverWs, {
-          type: 'peer_disconnected',
-          peer: 'sender',
-          message: 'Sender closed their tab or disconnected.',
-        });
-      }
-      this.sessions.delete(ws.sessionId);
-    } else if (session.receiverWs === ws) {
-      // Receiver disconnected
-      session.receiverWs = null;
-      session.isApproved = false;
-      if (session.senderWs && session.senderWs.readyState === WebSocket.OPEN) {
-        this.send(session.senderWs, {
-          type: 'peer_disconnected',
-          peer: 'receiver',
-          message: 'Receiver disconnected.',
-        });
+    for (const [id, session] of this.sessions.entries()) {
+      if (session.senderWs === ws) {
+        // Sender tab closed or disconnected
+        if (session.receiverWs && session.receiverWs.readyState === WebSocket.OPEN) {
+          this.send(session.receiverWs, {
+            type: 'peer_disconnected',
+            peer: 'sender',
+            message: 'Sender closed their tab or disconnected.',
+          });
+        }
+        this.sessions.delete(id);
+      } else if (session.receiverWs === ws) {
+        // Receiver disconnected
+        session.receiverWs = null;
+        session.isApproved = false;
+        if (session.senderWs && session.senderWs.readyState === WebSocket.OPEN) {
+          this.send(session.senderWs, {
+            type: 'peer_disconnected',
+            peer: 'receiver',
+            message: 'Receiver disconnected.',
+          });
+        }
       }
     }
   }
@@ -325,6 +353,9 @@ class SignalingService {
     for (const [id, session] of this.sessions.entries()) {
       if (session.senderWs === ws) {
         this.sessions.delete(id);
+      } else if (session.receiverWs === ws) {
+        session.receiverWs = null;
+        session.isApproved = false;
       }
     }
   }
@@ -335,6 +366,13 @@ class SignalingService {
     for (const [id, session] of this.sessions.entries()) {
       if (now - session.lastActivity > maxAge) {
         this.sessions.delete(id);
+      }
+    }
+
+    // Prune expired IP rate limit records to prevent unbounded memory growth
+    for (const [ip, limit] of this.ipLimits.entries()) {
+      if (now > limit.resetTime) {
+        this.ipLimits.delete(ip);
       }
     }
   }

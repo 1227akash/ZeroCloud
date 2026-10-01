@@ -57,7 +57,7 @@ export default function FaqSection() {
             Frequently Asked Questions
           </h2>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Everything you need to know about ZeroCloud's zero-store architecture.
+            Everything you need to know about ZeroCloud&apos;s zero-store architecture.
           </p>
         </div>
 

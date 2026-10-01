@@ -37,6 +37,7 @@ export default function HomePage() {
 
         {/* Editorial Visual Asset */}
         <div className="mt-12 w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-950 shadow-2xl relative group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/p2p_stream.jpg"
             alt="Direct browser-to-browser encrypted WebRTC data stream visualization"

@@ -6,6 +6,7 @@ import {
   encryptChunk,
   bufferToBase64Url,
   computeSha256,
+  IncrementalSha256,
 } from './crypto';
 import {
   CHUNK_SIZE,
@@ -299,6 +300,8 @@ export class TransferSender {
     this.startTime = Date.now();
     this.lastProgressTime = this.startTime;
 
+    const hasher = new IncrementalSha256();
+
     // Send initial metadata
     const metadata: FileMetadata = {
       name: this.file.name,
@@ -337,6 +340,9 @@ export class TransferSender {
       const sliceBlob = this.file.slice(offset, end);
       const chunkBuffer = await sliceBlob.arrayBuffer();
 
+      // Update incremental SHA-256 with plaintext chunk (O(1) memory)
+      hasher.update(chunkBuffer);
+
       // Encrypt chunk with AES-256-GCM
       const ciphertext = await encryptChunk(
         this.key,
@@ -370,9 +376,8 @@ export class TransferSender {
 
     if (this.currentChunk >= this.totalChunks && !this.isCancelled) {
       this.updateStatus('verifying');
-      // Compute full file hash for final integrity verification
-      const fileBuffer = await this.file.arrayBuffer();
-      const sha256 = await computeSha256(fileBuffer);
+      // Finalize incremental SHA-256 hash in O(1) memory without full file buffering
+      const sha256 = hasher.digest();
 
       this.dc?.send(
         JSON.stringify({

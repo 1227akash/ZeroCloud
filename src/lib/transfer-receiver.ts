@@ -4,6 +4,7 @@ import {
   decryptChunk,
   base64UrlToBuffer,
   computeSha256,
+  IncrementalSha256,
 } from './crypto';
 import {
   CHUNK_SIZE,
@@ -31,6 +32,8 @@ export class TransferReceiver {
   private writable: any = null;
   // Fallback chunk accumulator for browsers without File System Access API
   private fallbackChunks: Uint8Array[] = [];
+  // Streaming hash accumulator
+  private hasher = new IncrementalSha256();
 
   private isCancelled = false;
   private currentChunk = 0;
@@ -295,6 +298,9 @@ export class TransferReceiver {
         this.salt
       );
 
+      // Stream into SHA-256 integrity verifier (O(1) memory)
+      this.hasher.update(decryptedChunk);
+
       // Write directly to disk stream or push to accumulator
       if (this.writable) {
         await this.writable.write(decryptedChunk);
@@ -320,23 +326,17 @@ export class TransferReceiver {
   private async finalizeTransfer(expectedSha256: string) {
     this.updateStatus('verifying');
 
-    let isValid = false;
+    const calculatedHash = this.hasher.digest();
+    const isValid = calculatedHash.toLowerCase() === expectedSha256.toLowerCase();
 
     if (this.writable) {
       await this.writable.close();
       this.writable = null;
-      // In File System Access API, the file is fully written to disk
-      isValid = true; // Chunks were AES-GCM authenticated per slice
     } else if (this.fallbackChunks.length > 0) {
-      const blob = new Blob(this.fallbackChunks as unknown as BlobPart[], {
-        type: this.metadata?.type || 'application/octet-stream',
-      });
-      const buffer = await blob.arrayBuffer();
-      const calculatedHash = await computeSha256(buffer);
-
-      isValid = calculatedHash.toLowerCase() === expectedSha256.toLowerCase();
-
       if (isValid && typeof window !== 'undefined') {
+        const blob = new Blob(this.fallbackChunks as unknown as BlobPart[], {
+          type: this.metadata?.type || 'application/octet-stream',
+        });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -426,6 +426,7 @@ export class TransferReceiver {
       this.writable = null;
     }
     this.fallbackChunks = [];
+    this.hasher = new IncrementalSha256();
     if (this.dc) {
       try { this.dc.close(); } catch (_) {}
       this.dc = null;

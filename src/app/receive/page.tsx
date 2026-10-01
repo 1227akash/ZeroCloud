@@ -40,33 +40,6 @@ function ReceiveContent() {
     totalChunks: 0,
   });
 
-  // Extract session ID and key fragment on load
-  useEffect(() => {
-    const sessionFromQuery = searchParams.get('session');
-    let keyFromHash = '';
-
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const match = window.location.hash.match(/#key=([^&]+)/);
-      if (match) {
-        keyFromHash = match[1];
-      }
-    }
-
-    if (sessionFromQuery && keyFromHash) {
-      startReceiving(sessionFromQuery, keyFromHash);
-    } else if (sessionFromQuery) {
-      setInputCode(sessionFromQuery);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    return () => {
-      if (receiver) {
-        receiver.cancel();
-      }
-    };
-  }, [receiver]);
-
   const startReceiving = async (targetSession: string, targetKey: string) => {
     if (trapValue) {
       setErrorMessage('Bot submission detected.');
@@ -113,17 +86,76 @@ function ReceiveContent() {
     }
   };
 
+  // Extract session ID and key fragment on load
+  useEffect(() => {
+    const sessionFromQuery = searchParams.get('session');
+    let keyFromHash = '';
+
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const match = window.location.hash.match(/#key=([^&]+)/);
+      if (match) {
+        try {
+          keyFromHash = decodeURIComponent(match[1]);
+        } catch (_) {
+          keyFromHash = match[1];
+        }
+      }
+    }
+
+    if (sessionFromQuery && keyFromHash) {
+      startReceiving(sessionFromQuery, keyFromHash);
+    } else if (sessionFromQuery) {
+      setInputCode(sessionFromQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (receiver) {
+        receiver.cancel();
+      }
+    };
+  }, [receiver]);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputCode.trim()) return;
 
+    let code = inputCode.trim();
     let key = manualKey.trim();
-    if (!key && typeof window !== 'undefined' && window.location.hash) {
-      const match = window.location.hash.match(/#key=([^&]+)/);
-      if (match) key = match[1];
+
+    // Smart link detection: if full URL was pasted into the code box
+    if (code.includes('://') || code.includes('/receive?')) {
+      try {
+        const parsed = new URL(code, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+        const sessionParam = parsed.searchParams.get('session');
+        if (sessionParam) code = sessionParam;
+        if (!key && parsed.hash) {
+          const match = parsed.hash.match(/#key=([^&]+)/);
+          if (match) {
+            try {
+              key = decodeURIComponent(match[1]);
+            } catch (_) {
+              key = match[1];
+            }
+          }
+        }
+      } catch (_) {}
     }
 
-    startReceiving(inputCode.trim(), key);
+    if (!key && typeof window !== 'undefined' && window.location.hash) {
+      const match = window.location.hash.match(/#key=([^&]+)/);
+      if (match) {
+        try {
+          key = decodeURIComponent(match[1]);
+        } catch (_) {
+          key = match[1];
+        }
+      }
+    }
+
+    startReceiving(code, key);
   };
 
   const handleReset = () => {
@@ -140,7 +172,7 @@ function ReceiveContent() {
           Receive a Direct File
         </h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-          Connected directly to the sender's device. Data streams slice-by-slice into your local storage.
+          Connected directly to the sender&apos;s device. Data streams slice-by-slice into your local storage.
         </p>
       </div>
 

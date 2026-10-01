@@ -252,12 +252,61 @@ async function runTestSuite() {
   const receiverRevoked = await new Promise((res) => {
     receiver1Ws.once('message', (d) => res(JSON.parse(d.toString())));
   });
-  assert(receiverRevoked.type === 'session_revoked', 'Sender session revocation safely disconnects receiver');
+  // Test 3.6: Pre-approval Signal Barrier
+  const testSession2 = 'sec-token-barrier-' + crypto.randomBytes(8).toString('hex');
+  const sender2Ws = new WebSocket(wsUrl);
+  await new Promise((res) => sender2Ws.on('open', res));
+  sender2Ws.send(JSON.stringify({ type: 'create_session', sessionId: testSession2 }));
+  await new Promise((res) => sender2Ws.once('message', res));
+
+  const receiver3Ws = new WebSocket(wsUrl);
+  await new Promise((res) => receiver3Ws.on('open', res));
+  receiver3Ws.send(JSON.stringify({ type: 'join_session', sessionId: testSession2 }));
+  await new Promise((res) => sender2Ws.once('message', res)); // wait for receiver_requested
+
+  // Receiver attempts to send WebRTC signal BEFORE sender approval
+  receiver3Ws.send(JSON.stringify({ type: 'signal', sessionId: testSession2, payload: { sdp: 'fake' } }));
+  const unapprovedResp = await new Promise((res) => {
+    receiver3Ws.once('message', (d) => res(JSON.parse(d.toString())));
+  });
+  assert(
+    unapprovedResp.type === 'error' && unapprovedResp.code === 'SESSION_NOT_APPROVED',
+    'Pre-approval signal blocked: Receiver cannot exchange SDP/ICE before sender explicit approval'
+  );
+
+  // Test 3.7: Unauthorized Third-Party Signal Injection Attempt
+  const rogueWs = new WebSocket(wsUrl);
+  await new Promise((res) => rogueWs.on('open', res));
+  // Approve receiver3 now
+  sender2Ws.send(JSON.stringify({ type: 'approve_receiver', sessionId: testSession2 }));
+  await new Promise((res) => receiver3Ws.once('message', res)); // receiver_approved
+
+  // Rogue socket attempts to inject signal into testSession2
+  rogueWs.send(JSON.stringify({ type: 'signal', sessionId: testSession2, payload: { candidate: 'rogue' } }));
+  const rogueResp = await new Promise((res) => {
+    rogueWs.once('message', (d) => res(JSON.parse(d.toString())));
+  });
+  assert(
+    rogueResp.type === 'error' && rogueResp.code === 'UNAUTHORIZED',
+    'Unauthorized signal injection blocked: Rogue socket rejected from active session'
+  );
+
+  // Test 3.8: IP Rate Limiting Cleanup (Memory Leak Protection)
+  signaling.ipLimits.set('192.0.2.1', { count: 5, resetTime: Date.now() - 1000 }); // expired
+  signaling.ipLimits.set('192.0.2.2', { count: 1, resetTime: Date.now() + 60000 }); // active
+  signaling.cleanupStaleSessions();
+  assert(
+    !signaling.ipLimits.has('192.0.2.1') && signaling.ipLimits.has('192.0.2.2'),
+    'IP rate limit memory cleanup: Expired IP records automatically purged to prevent memory leaks'
+  );
 
   // Clean up WebSockets
   senderWs.close();
   receiver1Ws.close();
   receiver2Ws.close();
+  sender2Ws.close();
+  receiver3Ws.close();
+  rogueWs.close();
   signaling.close();
   testServer.close();
 

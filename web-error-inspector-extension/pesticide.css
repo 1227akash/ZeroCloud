@@ -1,0 +1,8 @@
+/* Web Bug Inspector - CSS Layout Debugger */
+div { outline: 1px solid #3b82f6 !important; }
+header, nav, footer { outline: 2px solid #10b981 !important; }
+article, section, main { outline: 2px solid #8b5cf6 !important; }
+button, a, input, select, textarea { outline: 2px dashed #f59e0b !important; }
+h1, h2, h3, h4, h5, h6 { outline: 1px solid #ef4444 !important; }
+p, span, label { outline: 1px dotted #ec4899 !important; }
+img, svg, video { outline: 2px solid #06b6d4 !important; }
