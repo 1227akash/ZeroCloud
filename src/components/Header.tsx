@@ -43,10 +43,25 @@ export default function Header() {
           </div>
         </Link>
 
+        <nav className="flex items-center gap-1 sm:gap-4 text-xs sm:text-sm font-medium">
+          <Link
+            href="/send"
+            className="px-3 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors"
+          >
+            Send
+          </Link>
+          <Link
+            href="/receive"
+            className="px-3 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-300 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors"
+          >
+            Receive
+          </Link>
+        </nav>
+
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>End-to-End Encrypted</span>
+            <span>AES-256 E2EE</span>
           </div>
 
           <button

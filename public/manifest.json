@@ -3,19 +3,51 @@
   "short_name": "ZeroCloud",
   "description": "Send up to 10 GB directly peer-to-peer with AES-256-GCM encryption. Zero cloud storage.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#090a0f",
   "theme_color": "#6366f1",
+  "categories": ["utilities", "productivity", "security"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/send",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "name",
+      "text": "description",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["*/*"]
+        }
+      ]
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Send File",
+      "url": "/send",
+      "description": "Send an encrypted file up to 10 GB"
+    },
+    {
+      "name": "Receive File",
+      "url": "/receive",
+      "description": "Receive an encrypted peer-to-peer file"
     }
   ]
 }

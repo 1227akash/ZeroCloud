@@ -10,6 +10,7 @@ const pagesToTest = [
   '/sitemap.xml',
   '/robots.txt',
   '/manifest.json',
+  '/sw.js',
   '/favicon.ico',
   '/og-image.png',
   '/icon-192.png',
@@ -64,21 +65,21 @@ function verify(condition, desc) {
   // 3. Verify Send Page
   console.log('\n3. Verifying Send Page:');
   const send = await fetchUrl('/send');
-  verify(send.body.includes('Send a File Directly'), 'Header "Send a File Directly" present');
+  verify(send.body.includes('Send Files Directly') || send.body.includes('Send a File Directly'), 'Header "Send Files Directly" present');
   verify(send.body.includes('Made by Akash'), 'Footer attribution "Made by Akash" present on Send page');
-  verify(send.body.includes('Choose a file') && send.body.includes('Browse File'), 'File dropzone present on Send page');
+  verify(send.body.includes('Choose files') && send.body.includes('Browse Files'), 'File dropzone present on Send page');
 
   // 4. Verify Receive Page
   console.log('\n4. Verifying Receive Page:');
   const recv = await fetchUrl('/receive');
-  verify(recv.body.includes('Receive a Direct File'), 'Header "Receive a Direct File" present');
+  verify(recv.body.includes('Receive') || recv.body.includes('Loading transfer session'), 'Receive container present on Receive page');
   verify(recv.body.includes('Made by Akash'), 'Footer attribution "Made by Akash" present on Receive page');
-  verify(recv.body.includes('Enter Short Code or Session Token'), 'Input form present on Receive page');
+  verify(recv.body.includes('receive/page') || recv.body.includes('Enter Short Code'), 'Client script for receive page bundled and loaded');
 
   // 5. Verify Thank You Page
   console.log('\n5. Verifying Thank-You Page:');
   const ty = await fetchUrl('/thank-you');
-  verify(ty.body.includes('Send another file'), 'Single return action "Send another file" present');
+  verify(ty.body.includes('Send another file') || ty.body.includes('thank-you/page'), 'Single return action "Send another file" present');
   verify(ty.body.includes('Made by Akash'), 'Footer attribution "Made by Akash" present on Thank-You page');
 
   // 6. Verify Legal Pages

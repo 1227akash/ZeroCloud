@@ -16,6 +16,7 @@ import {
   Lock,
   RefreshCw,
 } from 'lucide-react';
+import { playCompletionSound, requestNotificationPermission, sendTransferNotification } from '@/lib/notifications';
 
 function ReceiveContent() {
   const searchParams = useSearchParams();
@@ -65,10 +66,15 @@ function ReceiveContent() {
         if (p.sasCode) setSasCode(p.sasCode);
 
         if (p.status === 'completed') {
+          playCompletionSound();
+          sendTransferNotification(
+            'ZeroCloud File Received!',
+            `${p.fileMetadata?.name || 'File'} was downloaded and cryptographically verified.`
+          );
           trackEvent('transfer_completed');
           setTimeout(() => {
             router.push('/thank-you?received=1');
-          }, 1500);
+          }, 1800);
         }
       });
 
@@ -77,6 +83,7 @@ function ReceiveContent() {
         if (err) setErrorMessage(err);
       });
 
+      requestNotificationPermission().catch(() => {});
       await newReceiver.initialize();
       trackEvent('transfer_started');
     } catch (err: any) {

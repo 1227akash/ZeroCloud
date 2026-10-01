@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, ShieldCheck, HardDrive, Key, Lock, EyeOff, CheckCircle2, Cpu } from 'lucide-react';
 import FaqSection from '@/components/FaqSection';
+import LocalRadar from '@/components/LocalRadar';
 
 export default function HomePage() {
   return (
@@ -52,6 +53,9 @@ export default function HomePage() {
             <span className="hidden sm:inline text-zinc-400">Memory-to-Disk Stream</span>
           </div>
         </div>
+
+        {/* Local Wi-Fi Auto-Discovery Radar */}
+        <LocalRadar />
 
         {/* Minimal Feature Row */}
         <div className="mt-10 pt-8 border-t border-zinc-200/60 dark:border-zinc-800/60 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">

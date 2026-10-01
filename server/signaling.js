@@ -7,6 +7,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 class SignalingService {
   constructor(options = {}) {
     this.sessions = new Map();
+    this.localPeers = new Map(); // ws -> { id, name, device, ip }
     this.ipLimits = new Map(); // IP -> { count, resetTime }
     this.socketLimits = new Map(); // ws -> { count, resetTime }
     this.RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -58,6 +59,8 @@ class SignalingService {
 
     this.wss.on('connection', (ws, req) => {
       ws.isAlive = true;
+      ws.clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+      ws.peerId = Math.random().toString(36).substring(2, 10);
       ws.on('pong', () => { ws.isAlive = true; });
 
       ws.on('message', (data) => {
@@ -317,12 +320,75 @@ class SignalingService {
         break;
       }
 
+      case 'local_announce': {
+        const name = String(msg.name || 'Anonymous Peer').slice(0, 32);
+        const device = String(msg.device || 'Browser').slice(0, 32);
+        this.localPeers.set(ws, { id: ws.peerId, name, device, ip: ws.clientIp });
+        this.broadcastLocalPeers(ws.clientIp);
+        break;
+      }
+
+      case 'local_leave': {
+        if (this.localPeers.has(ws)) {
+          const ip = ws.clientIp;
+          this.localPeers.delete(ws);
+          this.broadcastLocalPeers(ip);
+        }
+        break;
+      }
+
+      case 'local_invite': {
+        const { targetPeerId, sessionId, shortCode, shareUrl, metadata } = msg;
+        if (!targetPeerId) return;
+        for (const [socket, info] of this.localPeers.entries()) {
+          if (info.id === targetPeerId && info.ip === ws.clientIp && socket.readyState === WebSocket.OPEN) {
+            const senderInfo = this.localPeers.get(ws) || { name: 'Nearby Device' };
+            this.send(socket, {
+              type: 'local_invite_received',
+              fromPeerId: ws.peerId,
+              fromName: senderInfo.name,
+              sessionId,
+              shortCode,
+              shareUrl,
+              metadata: metadata || null,
+            });
+            break;
+          }
+        }
+        break;
+      }
+
       default:
         this.sendError(ws, 'UNKNOWN_TYPE', `Unknown signal type: ${type}`);
     }
   }
 
+  broadcastLocalPeers(ip) {
+    if (!ip) return;
+    const peersOnIp = [];
+    for (const [socket, info] of this.localPeers.entries()) {
+      if (info.ip === ip && socket.readyState === WebSocket.OPEN) {
+        peersOnIp.push({ id: info.id, name: info.name, device: info.device });
+      }
+    }
+    for (const [socket, info] of this.localPeers.entries()) {
+      if (info.ip === ip && socket.readyState === WebSocket.OPEN) {
+        this.send(socket, {
+          type: 'local_peers_update',
+          myId: info.id,
+          peers: peersOnIp.filter(p => p.id !== info.id),
+        });
+      }
+    }
+  }
+
   handleDisconnect(ws) {
+    if (this.localPeers.has(ws)) {
+      const ip = ws.clientIp;
+      this.localPeers.delete(ws);
+      this.broadcastLocalPeers(ip);
+    }
+
     for (const [id, session] of this.sessions.entries()) {
       if (session.senderWs === ws) {
         // Sender tab closed or disconnected

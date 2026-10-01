@@ -88,6 +88,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#090a0f" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -97,6 +100,11 @@ export default function RootLayout({
                   document.documentElement.classList.remove('dark');
                 } else {
                   document.documentElement.classList.add('dark');
+                }
+                if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').catch(function() {});
+                  });
                 }
               } catch (_) {}
             `,

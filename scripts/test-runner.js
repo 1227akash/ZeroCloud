@@ -300,6 +300,33 @@ async function runTestSuite() {
     'IP rate limit memory cleanup: Expired IP records automatically purged to prevent memory leaks'
   );
 
+  // Test 3.9: ZeroDrop Local Wi-Fi Discovery Peering
+  const peer1Ws = new WebSocket(wsUrl);
+  const peer2Ws = new WebSocket(wsUrl);
+  await Promise.all([
+    new Promise((res) => peer1Ws.on('open', res)),
+    new Promise((res) => peer2Ws.on('open', res)),
+  ]);
+
+  const peerUpdatePromise = new Promise((res) => {
+    peer1Ws.on('message', (d) => {
+      const msg = JSON.parse(d.toString());
+      if (msg.type === 'local_peers_update' && msg.peers.length > 0) res(msg);
+    });
+  });
+
+  peer1Ws.send(JSON.stringify({ type: 'local_announce', name: 'Alpha Peer', device: 'Laptop' }));
+  peer2Ws.send(JSON.stringify({ type: 'local_announce', name: 'Beta Peer', device: 'Phone' }));
+
+  const peerUpdate = await peerUpdatePromise;
+  assert(
+    peerUpdate.type === 'local_peers_update' && peerUpdate.peers.some((p) => p.name === 'Beta Peer'),
+    'ZeroDrop Local Wi-Fi Radar: Sockets on same network discover active nearby peers'
+  );
+
+  peer1Ws.close();
+  peer2Ws.close();
+
   // Clean up WebSockets
   senderWs.close();
   receiver1Ws.close();
@@ -310,8 +337,23 @@ async function runTestSuite() {
   signaling.close();
   testServer.close();
 
-  // SECTION 4: Production Headers, Metadata & Brand Verification
-  console.log(bold('\n--- 4. Production Headers, Metadata, and Footer Verification ---'));
+  // SECTION 4: Multi-File Streaming ZIP & PWA Verification
+  console.log(bold('\n--- 4. Client-Side Multi-File Streaming & PWA Verification ---'));
+
+  const { downloadZip } = require('client-zip');
+  const zipMockFiles = [
+    { name: 'document.pdf', input: Buffer.from('PDF Content Data') },
+    { name: 'image.png', input: Buffer.from('PNG Binary Data Stream') }
+  ];
+  const zipResponse = downloadZip(zipMockFiles);
+  const zipBlob = await zipResponse.blob();
+  assert(
+    zipBlob.size > 0 && zipBlob.type === 'application/zip',
+    'Client-Side ZIP: Multi-file bundle packages in-memory into streaming ZIP archive'
+  );
+
+  // SECTION 5: Production Headers, Metadata & Brand Verification
+  console.log(bold('\n--- 5. Production Headers, Metadata, and Footer Verification ---'));
 
   const fs = require('fs');
   const path = require('path');

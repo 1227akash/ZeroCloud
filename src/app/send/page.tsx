@@ -10,17 +10,20 @@ import HoneypotField from '@/components/HoneypotField';
 import { TransferSender } from '@/lib/transfer-sender';
 import { TransferProgress as TransferProgressType, TransferStatus } from '@/lib/types';
 import { trackEvent } from '@/lib/analytics';
-import { ShieldCheck, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { playCompletionSound, requestNotificationPermission, sendTransferNotification } from '@/lib/notifications';
+import { downloadZip } from 'client-zip';
+import { ShieldCheck, ArrowRight, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function SendPage() {
   const router = useRouter();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [sender, setSender] = useState<TransferSender | null>(null);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [shortCode, setShortCode] = useState<string>('');
   const [sasCode, setSasCode] = useState<string>('');
   const [status, setStatus] = useState<TransferStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isBundling, setIsBundling] = useState(false);
 
   // Honeypot spam trap
   const [trapValue, setTrapValue] = useState('');
@@ -47,7 +50,7 @@ export default function SendPage() {
   }, [sender]);
 
   const handleStartSession = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
 
     // Check honeypot bot trap
     if (trapValue) {
@@ -57,20 +60,45 @@ export default function SendPage() {
 
     try {
       setErrorMessage(null);
-      setStatus('preparing');
       isInitializingRef.current = true;
 
-      const newSender = new TransferSender(selectedFile);
+      // Ask for notification permission early so user is alerted when transfer finishes
+      requestNotificationPermission().catch(() => {});
+
+      let fileToSend: File;
+
+      if (selectedFiles.length === 1) {
+        fileToSend = selectedFiles[0];
+      } else {
+        setIsBundling(true);
+        setStatus('preparing');
+        // Client-side streaming ZIP bundling
+        const zipResponse = downloadZip(selectedFiles);
+        const zipBlob = await zipResponse.blob();
+        fileToSend = new File([zipBlob], 'zerocloud-bundle.zip', {
+          type: 'application/zip',
+          lastModified: Date.now(),
+        });
+        setIsBundling(false);
+      }
+
+      setStatus('preparing');
+      const newSender = new TransferSender(fileToSend);
       setSender(newSender);
 
       newSender.onProgress((p) => {
         setProgressData(p);
         setStatus(p.status);
         if (p.status === 'completed') {
+          playCompletionSound();
+          sendTransferNotification(
+            'ZeroCloud Transfer Completed!',
+            `${fileToSend.name} was successfully received and verified with SHA-256.`
+          );
           trackEvent('transfer_completed');
           setTimeout(() => {
             router.push('/thank-you?sent=1');
-          }, 1500);
+          }, 1800);
         }
       });
 
@@ -89,6 +117,7 @@ export default function SendPage() {
       setErrorMessage(err.message || 'Failed to initialize encrypted transfer session.');
       setStatus('error');
     } finally {
+      setIsBundling(false);
       isInitializingRef.current = false;
     }
   };
@@ -110,14 +139,14 @@ export default function SendPage() {
   const handleRevokeSession = () => {
     if (!sender) return;
     sender.revokeSession();
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setSender(null);
     setStatus('idle');
   };
 
   const handleReset = () => {
     if (sender) sender.cancel();
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setSender(null);
     setStatus('idle');
     setErrorMessage(null);
@@ -127,10 +156,10 @@ export default function SendPage() {
     <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-12">
       <div className="text-center mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Send a File Directly
+          Send Files Directly
         </h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-          Choose a file up to 10 GB. It will be encrypted in your browser and transferred peer-to-peer.
+          Choose single or multiple files up to 10 GB. Encrypted in your browser and transferred peer-to-peer.
         </p>
       </div>
 
@@ -160,19 +189,34 @@ export default function SendPage() {
       {status === 'idle' && (
         <div className="flex flex-col items-center gap-6">
           <FileDropzone
-            onFileSelected={setSelectedFile}
-            selectedFile={selectedFile}
-            onClear={() => setSelectedFile(null)}
+            onFilesSelected={setSelectedFiles}
+            selectedFiles={selectedFiles}
+            onClear={() => setSelectedFiles([])}
+            disabled={isBundling}
           />
 
-          {selectedFile && (
+          {selectedFiles.length > 0 && (
             <button
               onClick={handleStartSession}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base tracking-tight flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 animate-fade-in"
+              disabled={isBundling}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-base tracking-tight flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/35 hover:-translate-y-0.5 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 animate-fade-in disabled:opacity-50"
             >
-              <ShieldCheck className="w-5 h-5" />
-              <span>Initialize Encrypted Transfer</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
+              {isBundling ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Packaging Files into Stream...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  <span>
+                    {selectedFiles.length > 1
+                      ? `Initialize Encrypted Transfer (${selectedFiles.length} files)`
+                      : 'Initialize Encrypted Transfer'}
+                  </span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </>
+              )}
             </button>
           )}
         </div>

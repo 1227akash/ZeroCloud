@@ -197,6 +197,21 @@ export default function TransferProgress({
       </div>
 
       {/* Verification / Status Alert */}
+      {(status === 'transferring' || isPaused) && (
+        <div className="mt-4 p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/60 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+            </span>
+            <span><strong>Keep tab open:</strong> Screen lock or switching apps on mobile may pause transfers.</span>
+          </div>
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+            ⚡ Screen WakeLock Active
+          </span>
+        </div>
+      )}
+
       {isVerifying && (
         <div className="mt-6 p-4 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-700 dark:text-brand-300 flex items-center gap-3 text-xs sm:text-sm animate-fade-in">
           <Loader2 className="w-4 h-4 animate-spin shrink-0" />

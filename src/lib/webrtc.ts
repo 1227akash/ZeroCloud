@@ -8,7 +8,8 @@ export const BUFFER_THRESHOLD = 1024 * 1024; // 1 MB backpressure threshold
 export function getRtcConfiguration(): RTCConfiguration {
   const iceServers: RTCIceServer[] = [];
 
-  const stunEnv = process.env.NEXT_PUBLIC_STUN_SERVERS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302';
+  const defaultStuns = 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302,stun:stun.cloudflare.com:3478';
+  const stunEnv = process.env.NEXT_PUBLIC_STUN_SERVERS || defaultStuns;
   const stunUrls = stunEnv.split(',').map((s) => s.trim()).filter(Boolean);
   if (stunUrls.length > 0) {
     iceServers.push({ urls: stunUrls });
@@ -48,14 +49,25 @@ export function getSignalingUrl(): string {
 export class WakeLockManager {
   private sentinel: any = null;
 
-  async request() {
+  get isLocked(): boolean {
+    return this.sentinel !== null && !this.sentinel.released;
+  }
+
+  async request(): Promise<boolean> {
     try {
-      if ('wakeLock' in navigator) {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
         this.sentinel = await (navigator as any).wakeLock.request('screen');
+        if (this.sentinel) {
+          this.sentinel.addEventListener('release', () => {
+            this.sentinel = null;
+          });
+        }
+        return true;
       }
     } catch (err) {
       console.warn('Wake Lock request error:', err);
     }
+    return false;
   }
 
   release() {
