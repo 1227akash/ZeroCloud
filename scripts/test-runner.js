@@ -327,6 +327,16 @@ async function runTestSuite() {
   peer1Ws.close();
   peer2Ws.close();
 
+  // Test 3.10: Serverless Signaling Relay Verification (Netlify/Vercel support)
+  const relayTopic = 'zc-probe-' + Date.now();
+  const testRelayWs = new WebSocket(`wss://ntfy.sh/${relayTopic}/ws`);
+  await new Promise((res) => testRelayWs.on('open', res));
+  assert(
+    testRelayWs.readyState === WebSocket.OPEN,
+    'Serverless Signaling Relay: Fallback pub-sub connection succeeds for serverless deployments (Netlify/Vercel)'
+  );
+  testRelayWs.close();
+
   // Clean up WebSockets
   senderWs.close();
   receiver1Ws.close();

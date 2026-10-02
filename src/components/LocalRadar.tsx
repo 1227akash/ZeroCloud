@@ -83,6 +83,10 @@ export default function LocalRadar() {
       }
     };
 
+    ws.onerror = () => {
+      wsRef.current = null;
+    };
+
     ws.onclose = () => {
       wsRef.current = null;
     };

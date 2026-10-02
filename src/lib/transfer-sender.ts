@@ -12,9 +12,9 @@ import {
   CHUNK_SIZE,
   BUFFER_THRESHOLD,
   getRtcConfiguration,
-  getSignalingUrl,
   WakeLockManager,
 } from './webrtc';
+import { createSignalingClient, ISignalingClient } from './signaling-client';
 import { FileMetadata, TransferProgress, TransferStatus, SignalingMessage } from './types';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024; // 10 GB
@@ -28,7 +28,7 @@ export class TransferSender {
   public salt: Uint8Array = new Uint8Array(12);
 
   private key: CryptoKey | null = null;
-  private ws: WebSocket | null = null;
+  private ws: ISignalingClient | null = null;
   private pc: RTCPeerConnection | null = null;
   private dc: RTCDataChannel | null = null;
   private wakeLock = new WakeLockManager();
@@ -89,8 +89,11 @@ export class TransferSender {
   private connectSignaling(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.updateStatus('connecting');
-      const wsUrl = getSignalingUrl();
-      this.ws = new WebSocket(wsUrl);
+      this.ws = createSignalingClient({
+        sessionId: this.sessionId,
+        role: 'sender',
+        shortCode: this.shortCode,
+      });
 
       this.ws.onopen = () => {
         this.ws?.send(
@@ -116,7 +119,7 @@ export class TransferSender {
       this.ws.onerror = (err) => {
         console.error('Signaling error:', err);
         this.updateStatus('error', 'Unable to connect to signaling server.');
-        reject(err);
+        reject(new Error('Unable to connect to signaling server. If deploying on serverless platforms, ensure the fallback relay is allowed by your network.'));
       };
 
       this.ws.onclose = () => {

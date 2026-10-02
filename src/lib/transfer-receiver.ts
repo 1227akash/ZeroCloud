@@ -9,9 +9,9 @@ import {
 import {
   CHUNK_SIZE,
   getRtcConfiguration,
-  getSignalingUrl,
   WakeLockManager,
 } from './webrtc';
+import { createSignalingClient, ISignalingClient } from './signaling-client';
 import { FileMetadata, TransferProgress, TransferStatus, SignalingMessage } from './types';
 
 export class TransferReceiver {
@@ -23,7 +23,7 @@ export class TransferReceiver {
   public metadata: FileMetadata | null = null;
 
   private key: CryptoKey | null = null;
-  private ws: WebSocket | null = null;
+  private ws: ISignalingClient | null = null;
   private pc: RTCPeerConnection | null = null;
   private dc: RTCDataChannel | null = null;
   private wakeLock = new WakeLockManager();
@@ -77,8 +77,11 @@ export class TransferReceiver {
   private connectSignaling(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.updateStatus('connecting');
-      const wsUrl = getSignalingUrl();
-      this.ws = new WebSocket(wsUrl);
+      this.ws = createSignalingClient({
+        sessionId: this.sessionId,
+        role: 'receiver',
+        shortCode: this.shortCode,
+      });
 
       this.ws.onopen = () => {
         this.ws?.send(
@@ -103,7 +106,7 @@ export class TransferReceiver {
 
       this.ws.onerror = (err) => {
         this.updateStatus('error', 'Unable to connect to signaling server.');
-        reject(err);
+        reject(new Error('Unable to connect to signaling server. If deploying on serverless platforms, ensure the fallback relay is allowed by your network.'));
       };
 
       this.ws.onclose = () => {
