@@ -1,8 +1,7 @@
 // ZeroCloud Lightweight Service Worker for PWA Installation and Asset Caching
 
-const CACHE_NAME = 'zerocloud-v1';
+const CACHE_NAME = 'zerocloud-v2';
 const PRECACHE_URLS = [
-  '/',
   '/manifest.json',
   '/favicon.ico',
   '/favicon.svg',
@@ -32,18 +31,39 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests, bypass WebSockets and dynamic API calls
-  if (event.request.method !== 'GET' || event.request.url.includes('/ws') || event.request.url.includes('/api/')) {
+  // Only handle GET requests; bypass WebSockets, APIs, and external signaling
+  if (
+    event.request.method !== 'GET' ||
+    event.request.url.includes('/ws') ||
+    event.request.url.includes('/api/') ||
+    event.request.url.includes('ntfy.sh')
+  ) {
     return;
   }
 
+  // Network-First for HTML navigation documents so users always receive latest code
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((res) => res || caches.match('/')))
+    );
+    return;
+  }
+
+  // Cache-first with network fallback for versioned static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Cache static static chunks and images
         if (
           networkResponse &&
           networkResponse.status === 200 &&
@@ -54,8 +74,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       });
-    }).catch(() => {
-      return caches.match('/');
     })
   );
 });

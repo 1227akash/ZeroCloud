@@ -44,7 +44,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob:",
-              "connect-src 'self' ws: wss: https://*.cloudflare.com data: blob:",
+              "connect-src 'self' ws: wss: https://ntfy.sh https://*.ntfy.sh https://*.cloudflare.com data: blob:",
               "frame-src https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
               "object-src 'none'",
